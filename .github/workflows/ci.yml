@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            shell: bash
+          - os: macos-latest
+            platform: macos
+            shell: bash
+          - os: windows-latest
+            platform: windows-x64
+            shell: msys2 {0}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - if: matrix.os == 'windows-latest'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            base-devel
+            git
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-make
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-SDL3
+
+      - if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsdl3-dev pkg-config
+
+      - if: matrix.os == 'macos-latest'
+        run: |
+          brew install sdl3 pkg-config
+
+      - name: Build
+        shell: ${{ matrix.shell }}
+        run: make
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cnqsosynth-${{ matrix.platform }}
+          path: |
+            cnqsosynth
+            cnqsosynth.exe
+            Nintendo-DS-BIOS.ttf
+          if-no-files-found: error
