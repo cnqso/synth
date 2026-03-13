@@ -2,7 +2,6 @@
 #define SYNTH_H
 
 #include <SDL3/SDL.h>
-#include <SDL3/SDL_main.h>
 #include <stdint.h>
 
 #define SCREEN_W 640
