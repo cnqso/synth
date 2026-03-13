@@ -3,7 +3,12 @@ VERSION ?= dev
 PKG_CONFIG ?= pkg-config
 CC ?= cc
 EXEEXT :=
+UNAME_S := $(shell uname -s 2>/dev/null)
 ifeq ($(OS),Windows_NT)
+EXEEXT := .exe
+else ifneq (,$(findstring MINGW,$(UNAME_S)))
+EXEEXT := .exe
+else ifneq (,$(findstring MSYS,$(UNAME_S)))
 EXEEXT := .exe
 endif
 

@@ -14,6 +14,11 @@ fi
 platform_label="$1"
 version="$2"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+make_cmd="${MAKE:-make}"
+
+if ! command -v "$make_cmd" >/dev/null 2>&1 && command -v mingw32-make >/dev/null 2>&1; then
+    make_cmd="mingw32-make"
+fi
 
 case "$platform_label" in
     linux-*) platform_family="linux" ;;
@@ -39,8 +44,8 @@ rm -rf "$bundle_dir"
 mkdir -p "$stage_root"
 
 log "Building $binary_name for $platform_label"
-make -C "$repo_root" clean >/dev/null
-make -C "$repo_root" VERSION="$version" >/dev/null
+"$make_cmd" -C "$repo_root" clean >/dev/null
+"$make_cmd" -C "$repo_root" VERSION="$version" >/dev/null
 
 copy_common_files() {
     cp "$repo_root/README.md" "$1/"
