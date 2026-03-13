@@ -1,60 +1,79 @@
-name: ci
+name: CI
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  build-unix:
+    name: Build (${{ matrix.platform }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             platform: linux-x64
-            shell: bash
-          - os: macos-latest
-            platform: macos
-            shell: bash
-          - os: windows-latest
-            platform: windows-x64
-            shell: msys2 {0}
-
+          - os: macos-14
+            platform: macos-arm64
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out
+        uses: actions/checkout@v6.0.2
 
-      - if: matrix.os == 'windows-latest'
-        uses: msys2/setup-msys2@v2
+      - name: Install Linux toolchain
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config
+
+      - name: Install macOS pkg-config
+        if: runner.os == 'macOS'
+        run: brew install pkg-config
+
+      - name: Install SDL3
+        id: sdl
+        uses: libsdl-org/setup-sdl@4ebea449684c989388fe6bcea0460e300d13a5ae
+        with:
+          version: 3.4.2
+          build-type: Release
+          sdl-test: false
+
+      - name: Build and verify
+        run: |
+          export PKG_CONFIG_PATH="${{ steps.sdl.outputs.prefix }}/lib/pkgconfig"
+          export PATH="${{ steps.sdl.outputs.prefix }}/bin:$PATH"
+          make VERSION="${GITHUB_SHA::7}"
+          ./cnqsosynth --version
+
+  build-windows:
+    name: Build (windows-x64)
+    runs-on: windows-2022
+    steps:
+      - name: Check out
+        uses: actions/checkout@v6.0.2
+
+      - name: Install MSYS2 toolchain
+        uses: msys2/setup-msys2@v2.30.0
         with:
           msystem: UCRT64
           update: true
           install: >-
-            base-devel
-            git
             mingw-w64-ucrt-x86_64-gcc
             mingw-w64-ucrt-x86_64-make
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-SDL3
 
-      - if: matrix.os == 'ubuntu-latest'
+      - name: Build and verify
+        shell: msys2 {0}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libsdl3-dev pkg-config
-
-      - if: matrix.os == 'macos-latest'
-        run: |
-          brew install sdl3 pkg-config
-
-      - name: Build
-        shell: ${{ matrix.shell }}
-        run: make
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: cnqsosynth-${{ matrix.platform }}
-          path: |
-            cnqsosynth
-            cnqsosynth.exe
-            Nintendo-DS-BIOS.ttf
-          if-no-files-found: error
+          make VERSION="${GITHUB_SHA::7}"
+          ./cnqsosynth.exe --version

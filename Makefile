@@ -1,19 +1,26 @@
+APP_NAME ?= cnqsosynth
+VERSION ?= dev
+PKG_CONFIG ?= pkg-config
 CC ?= cc
 EXEEXT :=
 ifeq ($(OS),Windows_NT)
 EXEEXT := .exe
 endif
-TARGET = cnqsosynth$(EXEEXT)
-CFLAGS = $(shell pkg-config --cflags sdl3) -O2 -Wall -Wno-unused-function
-LDFLAGS = $(shell pkg-config --libs sdl3) -lm
+
+TARGET = $(APP_NAME)$(EXEEXT)
 SRC = main.c draw.c audio.c midi.c ui.c
+SDL_CFLAGS := $(shell $(PKG_CONFIG) --cflags sdl3)
+SDL_LIBS := $(shell $(PKG_CONFIG) --libs sdl3)
+CPPFLAGS += $(SDL_CFLAGS) -DAPP_NAME=\"$(APP_NAME)\" -DAPP_VERSION=\"$(VERSION)\"
+CFLAGS += -O2 -Wall -Wno-unused-function
+LDLIBS += $(SDL_LIBS) -lm
 
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $(SRC) $(LDFLAGS)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $(SRC) $(LDFLAGS) $(LDLIBS)
 
 clean:
-	rm -f cnqsosynth cnqsosynth.exe
+	rm -f $(APP_NAME) $(APP_NAME).exe
 
 .PHONY: all clean

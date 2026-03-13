@@ -1,6 +1,7 @@
 #include "synth.h"
 
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -8,6 +9,14 @@
 #include "draw.h"
 #include "midi.h"
 #include "ui.h"
+
+#ifndef APP_NAME
+#define APP_NAME "cnqsosynth"
+#endif
+
+#ifndef APP_VERSION
+#define APP_VERSION "dev"
+#endif
 
 static void SDLCALL midi_dialog_cb(void *userdata, const char * const *files, int filter) {
     (void)filter;
@@ -230,6 +239,26 @@ static void update_midi_playback(Synth *s) {
 }
 
 int main(int argc, char *argv[]) {
+    const char *midi_path = NULL;
+
+    for (int i = 1; i < argc; i++) {
+        if (!strcmp(argv[i], "--version")) {
+            printf("%s %s\n", APP_NAME, APP_VERSION);
+            return 0;
+        }
+        if (!strcmp(argv[i], "--help")) {
+            printf("usage: %s [midi-file]\n", argv[0]);
+            printf("       %s --version\n", argv[0]);
+            return 0;
+        }
+        if (argv[i][0] == '-') {
+            fprintf(stderr, "unknown option: %s\n", argv[i]);
+            return 1;
+        }
+        midi_path = argv[i];
+        break;
+    }
+
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return 1;
@@ -247,7 +276,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (argc > 1) load_midi(&synth, argv[1]);
+    if (midi_path) load_midi(&synth, midi_path);
 
     int running = 1;
     int mouse_piano_note = -1;
