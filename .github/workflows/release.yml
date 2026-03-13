@@ -86,6 +86,7 @@ jobs:
           MAKE: mingw32-make
         run: |
           asset_path="$(scripts/package_release.sh "windows-x64" "${GITHUB_REF_NAME}")"
+          asset_path="$(cygpath -m "$asset_path")"
           printf 'asset_path=%s\n' "$asset_path" >> "$GITHUB_OUTPUT"
 
       - name: Upload packaged asset

@@ -73,7 +73,7 @@ package_linux() {
 }
 
 package_macos() {
-    local app_dir contents_dir bin_dir resources_dir frameworks_dir app_bin linked_sdl bundled_sdl plist_path
+    local app_dir contents_dir bin_dir resources_dir frameworks_dir app_bin linked_sdl bundled_sdl plist_path sdl_libdir resolved_sdl
 
     app_dir="$stage_root/$bundle_name.app"
     contents_dir="$app_dir/Contents"
@@ -91,10 +91,24 @@ package_macos() {
     cp "$repo_root/README.md" "$resources_dir/"
 
     linked_sdl="$(otool -L "$repo_root/$binary_name" | awk '/libSDL3.*dylib/ { print $1; exit }')"
-    if [[ -n "${linked_sdl:-}" ]]; then
+    sdl_libdir="$(pkg-config --variable=libdir sdl3 2>/dev/null || true)"
+    resolved_sdl=""
+
+    if [[ -n "${sdl_libdir:-}" && -f "$sdl_libdir/libSDL3.0.dylib" ]]; then
+        resolved_sdl="$sdl_libdir/libSDL3.0.dylib"
+    elif [[ -n "${linked_sdl:-}" && "$linked_sdl" = /* && -f "$linked_sdl" ]]; then
+        resolved_sdl="$linked_sdl"
+    elif [[ -n "${linked_sdl:-}" && -n "${sdl_libdir:-}" && -f "$sdl_libdir/$(basename "$linked_sdl")" ]]; then
+        resolved_sdl="$sdl_libdir/$(basename "$linked_sdl")"
+    fi
+
+    if [[ -n "${linked_sdl:-}" && -n "${resolved_sdl:-}" ]]; then
         bundled_sdl="$frameworks_dir/$(basename "$linked_sdl")"
-        cp -L "$linked_sdl" "$bundled_sdl"
+        cp -L "$resolved_sdl" "$bundled_sdl"
         install_name_tool -change "$linked_sdl" "@executable_path/../Frameworks/$(basename "$bundled_sdl")" "$app_bin"
+    elif [[ -n "${linked_sdl:-}" ]]; then
+        printf 'Unable to resolve SDL runtime for macOS bundle (link name: %s)\n' "$linked_sdl" >&2
+        exit 1
     fi
 
     cat >"$plist_path" <<EOF
